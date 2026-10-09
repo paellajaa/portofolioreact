@@ -35,7 +35,7 @@ export default function Contact() {
 
   return (
     <>
-      <section id="contact" className="bg-[#F5F5F5] py-20 border-t-4 border-black">
+      <section id="contact" className="bg-blue-600 py-20 border-t-4 border-black">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           {/* Section Header */}
           <motion.div
@@ -52,7 +52,7 @@ export default function Contact() {
               <div className="w-4 h-4 rounded-full bg-[#FFD500] border-2 border-black shadow-[inset_-1px_-1px_2px_rgba(0,0,0,0.4)]" />
             </div>
             {/* Yellow Header Badge */}
-            <div className="bg-[#FFD500] border-4 border-black px-4 py-1 font-bold inline-block shadow-[4px_4px_0px_0px_#000] font-mono text-lg md:text-xl uppercase">
+            <div className="bg-[#FFD500] border-4 border-black px-4 py-1 font-bold inline-block shadow-[4px_4px_0px_0px_#000] font-mono text-lg md:text-xl uppercase text-black">
               CONTACT ME
             </div>
           </motion.div>
@@ -60,13 +60,13 @@ export default function Contact() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
             {/* LEFT — Info & Socials */}
             <div>
-              <h2 className="font-mono font-bold text-3xl md:text-4xl uppercase mb-1.5 text-black">
+              <h2 className="font-mono font-bold text-3xl md:text-4xl uppercase mb-1.5 text-white">
                 LET'S BUILD
               </h2>
-              <h2 className="font-mono font-bold text-3xl md:text-4xl uppercase text-[#af101a] mb-6">
+              <h2 className="font-mono font-bold text-3xl md:text-4xl uppercase text-white mb-6">
                 SOMETHING GREAT.
               </h2>
-              <p className="text-gray-800 mb-8 leading-relaxed font-sans text-base">
+              <p className="text-slate-100 mb-8 leading-relaxed font-sans text-base">
                 Mau kolaborasi, diskusi project, atau sekadar ngobrol seputar web development & UI/UX design?
                 Jangan ragu untuk menghubungi saya. Saya selalu terbuka untuk ide dan peluang baru!
               </p>

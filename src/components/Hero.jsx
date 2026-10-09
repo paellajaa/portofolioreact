@@ -60,7 +60,7 @@ export default function Hero() {
 
   return (
     <>
-      <section id="about-hero" className="w-full max-w-[1600px] mx-auto px-6 md:px-12 lg:px-16 mb-24 pt-6">
+      <section id="about-hero" className="w-full max-w-[1600px] mx-auto px-6 md:px-12 lg:px-16 mb-24 pt-6 mt-0">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* LEFT COLUMN: Identity & Bio (7 cols) with Staggered Entrance */}
           <motion.div
@@ -174,7 +174,7 @@ export default function Hero() {
       </section>
 
       {/* Infinite Seamless Marquee Ticker Strip below Hero */}
-      <div className="w-full border-y-4 border-black bg-[#FFD500] py-3.5 overflow-hidden mb-20 flex select-none shadow-[4px_4px_0px_0px_#000]">
+      <div className="w-full border-y-4 border-black bg-[#FFD500] py-3.5 overflow-hidden mb-0 flex select-none shadow-[4px_4px_0px_0px_#000]">
         <motion.div
           className="flex w-max shrink-0 items-center gap-8 whitespace-nowrap font-mono text-xs font-bold text-black uppercase"
           animate={{ x: ['0%', '-50%'] }}
