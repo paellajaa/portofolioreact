@@ -3,11 +3,12 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lego3DLanyard from './3DLegoLanyard';
 
-// Daftarkan ScrollTrigger plugin
+// Daftarkan plugin ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
 
 const TOTAL_FRAMES = 214;
 const getFrameUrl = (idx) => `/frames/frame_${idx.toString().padStart(5, '0')}.webp`;
+const FRAME_SEQUENCE_END = 0.75; // Sequence tembok hancur selesai di 75% scroll
 
 export default function ScrollExperience() {
   const containerRef = useRef(null);
@@ -44,7 +45,7 @@ export default function ScrollExperience() {
       const target = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(idx)));
       let img = images[target];
 
-      // Jika frame target belum siap, cari frame terdekat yang sudah selesai di-load (fallback)
+      // Fallback ke frame terdekat jika frame target sedang loading
       if (!img || !img.complete || img.naturalWidth === 0) {
         for (let offset = 1; offset <= 25; offset++) {
           const prev = target - offset;
@@ -105,7 +106,7 @@ export default function ScrollExperience() {
       loadFrame(f, false);
     }
 
-    // Idle loader untuk sisa frame agar bandwidth lancar
+    // Idle loader untuk sisa frame
     let idleBatch = 1;
     const loadRemaining = () => {
       const end = Math.min(TOTAL_FRAMES, idleBatch + 12);
@@ -136,19 +137,21 @@ export default function ScrollExperience() {
           pin: true, // Pinned di layar saat animasi berjalan
           anticipatePin: 1,
           onUpdate: (self) => {
-            // Render frame sesuai progress scroll
-            const targetFrame = Math.round(1 + self.progress * (TOTAL_FRAMES - 1));
+            // 1. Pemisahan 75% & 25%: Sequence tembok selesai sepenuhnya di 75% progress scroll
+            const frameProgress = gsap.utils.clamp(0, 1, self.progress / FRAME_SEQUENCE_END);
+            const targetFrame = Math.round(1 + frameProgress * (TOTAL_FRAMES - 1));
             renderFrame(targetFrame);
           },
         },
       });
 
-      // Set initial states secara presisi sebelum scroll dimulai
+      // 2. Set initial states murni via GSAP (tanpa konflik class Tailwind)
       gsap.set(cloudsRef.current, {
         yPercent: 100,
         opacity: 0,
       });
 
+      // 3. Bebaskan scroll: Lanyard pointer-events-none agar tidak menghijack mouse wheel
       gsap.set(lanyardWrapperRef.current, {
         opacity: 0,
         scale: 0.9,
@@ -156,13 +159,13 @@ export default function ScrollExperience() {
         pointerEvents: 'none',
       });
 
-      // Hubungkan frame animation ke timeline (0 -> 1.0)
+      // Hubungkan frame animation ke timeline hingga poin FRAME_SEQUENCE_END
       tl.to(
         frameObj,
         {
           frame: TOTAL_FRAMES,
           ease: 'none',
-          duration: 1,
+          duration: FRAME_SEQUENCE_END,
         },
         0
       );
@@ -179,31 +182,30 @@ export default function ScrollExperience() {
         0
       );
 
-      // Layer Lanyard: Meluncur turun masuk ke tengah saat lubang tembok terbuka
+      // 1b. Jalankan animasi Lanyard turun pada poin 0.68 (tetap pointer-events-none agar scroll lancar)
       tl.to(
         lanyardWrapperRef.current,
         {
           opacity: 1,
           scale: 1,
           y: 0,
-          pointerEvents: 'auto',
-          duration: 0.25,
+          pointerEvents: 'none',
+          duration: 0.15,
           ease: 'power2.out',
         },
         0.68
       );
 
-      // Layer Awan Putih: BARU MUNCUL di bagian AKHIR timeline setelah tembok hancur selesai
-      // Naik dari bawah (yPercent: 0, opacity: 1) menutupi sisa bagian bawah tembok dengan rapi
+      // 1c. Animasi Awan HANYA DARI poin FRAME_SEQUENCE_END (0.75) hingga selesai (1.0)
       tl.to(
         cloudsRef.current,
         {
           yPercent: 0,
           opacity: 1,
-          duration: 0.25,
+          duration: 1 - FRAME_SEQUENCE_END,
           ease: 'power2.out',
         },
-        0.75
+        FRAME_SEQUENCE_END
       );
     }, container);
 
@@ -235,20 +237,20 @@ export default function ScrollExperience() {
       </div>
 
       {/* ─── LAYER 2: LANYARD 3D INTERAKTIF (Di Depan Tembok Terbuka - z-20) ─── */}
+      {/* Bebaskan scroll: pointer-events-none di wrapper dan kontainer Lanyard */}
       <div
         ref={lanyardWrapperRef}
         className="absolute inset-0 z-20 pointer-events-none flex justify-center items-center opacity-0 will-change-transform"
       >
-        {/* Batasi lebar di tengah agar kiri & kanan tetap tembus scroll dengan leluasa */}
-        <div className="w-full sm:w-2/3 md:w-1/2 lg:w-5/12 max-w-[560px] h-full pointer-events-auto flex justify-center items-center">
+        <div className="w-full sm:w-2/3 md:w-1/2 lg:w-5/12 max-w-[560px] h-full pointer-events-none flex justify-center items-center">
           <Lego3DLanyard />
         </div>
       </div>
 
-      {/* ─── LAYER 3: AWAN PUTIH (Paling Depan - z-30, Menutupi Bagian Bawah Tembok) ─── */}
+      {/* ─── LAYER 3: AWAN PUTIH (Paling Depan - z-50, Tanpa Konflik Class Tailwind) ─── */}
       <div
         ref={cloudsRef}
-        className="absolute bottom-0 left-0 w-full z-30 pointer-events-none select-none leading-none will-change-transform translate-y-full opacity-0"
+        className="absolute bottom-0 left-0 w-full z-50 pointer-events-none opacity-0 select-none leading-none will-change-transform"
       >
         <img
           src="/awan-section.png"
