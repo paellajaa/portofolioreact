@@ -14,7 +14,7 @@ const cardMotionProps = {
 
 export default function About() {
   return (
-    <section id="about" className="bg-[#F5F5F5] pt-6 pb-20 border-t-0 mt-0">
+    <section id="about" className="bg-[#F5F5F5] py-20 border-t-4 border-black mt-0">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         {/* Section Header */}
         <motion.div
@@ -22,7 +22,7 @@ export default function About() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4 }}
-          className="mb-8"
+          className="mb-12"
         >
           {/* Lego Studs */}
           <div className="flex gap-2 mb-2">
