@@ -1,260 +1,266 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lego3DLanyard from './3DLegoLanyard';
 
 // Daftarkan ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
 
+const TOTAL_FRAMES = 214;
+const getFrameUrl = (idx) => `/frames/frame_${idx.toString().padStart(5, '0')}.webp`;
+
 export default function ScrollExperience() {
-  const componentRef = useRef(null);
-  const wallRef = useRef(null);
-  const cardRef = useRef(null);
-  const strapRef = useRef(null);
+  const containerRef = useRef(null);
+  const canvasRef = useRef(null);
+  const lanyardWrapperRef = useRef(null);
   const cloudsRef = useRef(null);
   const indicatorRef = useRef(null);
+  const imagesRef = useRef([]);
 
   useEffect(() => {
-    // Gunakan gsap.context untuk scoping dan safe cleanup
-    const ctx = gsap.context(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    const images = Array(TOTAL_FRAMES + 1);
+    imagesRef.current = images;
+
+    // ─── 1. RESIZE & FRAMING STABIL (Object-Cover Math) ───
+    const resizeCanvas = () => {
+      const rect = container.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+    };
+
+    resizeCanvas();
+
+    // ─── 2. RENDER FRAME KE CANVAS ───
+    let lastRenderedIdx = -1;
+    const renderFrame = (idx) => {
+      const target = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(idx)));
+      let img = images[target];
+
+      // Jika frame target belum siap, cari frame terdekat yang sudah selesai di-load (fallback)
+      if (!img || !img.complete || img.naturalWidth === 0) {
+        for (let offset = 1; offset <= 25; offset++) {
+          const prev = target - offset;
+          const next = target + offset;
+          if (prev >= 1 && images[prev]?.complete && images[prev]?.naturalWidth > 0) {
+            img = images[prev];
+            break;
+          }
+          if (next <= TOTAL_FRAMES && images[next]?.complete && images[next]?.naturalWidth > 0) {
+            img = images[next];
+            break;
+          }
+        }
+      }
+
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+      if (lastRenderedIdx === target) return;
+      lastRenderedIdx = target;
+
+      // Object-cover math agar framing tembok MERAH STABIL (tidak zoom/geser keluar layar)
+      const hRatio = canvas.width / img.naturalWidth;
+      const vRatio = canvas.height / img.naturalHeight;
+      const ratio = Math.max(hRatio, vRatio);
+      const drawWidth = img.naturalWidth * ratio;
+      const drawHeight = img.naturalHeight * ratio;
+      const shiftX = (canvas.width - drawWidth) / 2;
+      const shiftY = (canvas.height - drawHeight) / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, shiftX, shiftY, drawWidth, drawHeight);
+    };
+
+    // ─── 3. PRELOAD IMAGE SEQUENCE ───
+    const loadFrame = (idx, priority = false) => {
+      if (idx < 1 || idx > TOTAL_FRAMES || images[idx]) return;
+      const img = new Image();
+      if (priority && 'fetchPriority' in img) {
+        img.fetchPriority = 'high';
+      }
+      img.src = getFrameUrl(idx);
+      img.onload = () => {
+        images[idx] = img;
+        if (idx === 1 && lastRenderedIdx === -1) {
+          renderFrame(1);
+        }
+      };
+      images[idx] = img;
+    };
+
+    // Frame pertama wajib prioritas tertinggi
+    loadFrame(1, true);
+
+    // Keyframes prioritas tinggi
+    [2, 3, 4, 5, 50, 100, 150, 180, 200, 210, 214].forEach((f) => loadFrame(f, true));
+
+    // Preload bertahap
+    for (let f = 10; f < TOTAL_FRAMES; f += 5) {
+      loadFrame(f, false);
+    }
+
+    // Idle loader untuk sisa frame agar bandwidth lancar
+    let idleBatch = 1;
+    const loadRemaining = () => {
+      const end = Math.min(TOTAL_FRAMES, idleBatch + 12);
+      for (let i = idleBatch; i <= end; i++) {
+        loadFrame(i, false);
+      }
+      idleBatch = end + 1;
+      if (idleBatch <= TOTAL_FRAMES) {
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(loadRemaining);
+        } else {
+          setTimeout(loadRemaining, 35);
+        }
+      }
+    };
+    loadRemaining();
+
+    // ─── 4. GSAP SCROLLTRIGGER PIN & SCRUB ───
+    const frameObj = { frame: 1 };
+
+    const ctxGsap = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: componentRef.current,
+          trigger: container,
           start: 'top top',
-          end: '+=2000',
-          scrub: 1, // scrubbing maju-mundur mengikuti pergerakan scroll
-          pin: true, // pin container saat animasi berjalan
+          end: '+=2500', // Memberi ruang scroll yang cukup untuk scrubbing mulus
+          scrub: 1, // Scrubbing maju-mundur mengikuti scroll mouse
+          pin: true, // Pinned di layar saat animasi berjalan
           anticipatePin: 1,
+          onUpdate: (self) => {
+            // Render frame sesuai progress scroll
+            const targetFrame = Math.round(1 + self.progress * (TOTAL_FRAMES - 1));
+            renderFrame(targetFrame);
+          },
         },
       });
 
-      // 1. Scroll Indicator langsung fade out saat mulai scroll
+      // Hubungkan frame animation ke timeline
+      tl.to(
+        frameObj,
+        {
+          frame: TOTAL_FRAMES,
+          ease: 'none',
+          duration: 1,
+        },
+        0
+      );
+
+      // Scroll Prompt Indicator langsung menghilang saat mulai di-scroll
       tl.to(
         indicatorRef.current,
         {
           opacity: 0,
           y: -25,
-          duration: 0.15,
+          duration: 0.1,
           ease: 'power1.out',
         },
         0
       );
 
-      // 2. Dinding Lego background bergerak dengan efek parallax & subtle scale
-      tl.to(
-        wallRef.current,
-        {
-          scale: 1.12,
-          yPercent: 4,
-          duration: 1,
-          ease: 'none',
-        },
-        0
-      );
-
-      // 3. Tali Lanyard & Kartu ID Profil meluncur turun masuk ke tengah layar
+      // Layer Lanyard: Muncul meluncur saat lubang tembok mulai terbuka (progress 0.6 -> 0.9)
       tl.fromTo(
-        strapRef.current,
-        { scaleY: 0, transformOrigin: 'top center' },
+        lanyardWrapperRef.current,
         {
-          scaleY: 1,
-          duration: 0.6,
-          ease: 'power2.out',
-        },
-        0.05
-      );
-
-      tl.fromTo(
-        cardRef.current,
-        {
-          y: -900,
-          rotation: -10,
-          scale: 0.85,
           opacity: 0,
+          scale: 0.9,
+          y: -60,
+          pointerEvents: 'none',
         },
         {
-          y: 0,
-          rotation: 0,
-          scale: 1,
           opacity: 1,
-          duration: 0.65,
+          scale: 1,
+          y: 0,
+          pointerEvents: 'auto',
+          duration: 0.35,
           ease: 'power2.out',
         },
-        0.05
+        0.65
       );
 
-      // Ayunan natural kartu saat tiba di tengah
-      tl.to(
-        cardRef.current,
-        {
-          rotation: 3,
-          duration: 0.18,
-          ease: 'power1.inOut',
-        },
-        0.7
-      ).to(
-        cardRef.current,
-        {
-          rotation: 0,
-          duration: 0.15,
-          ease: 'power1.inOut',
-        },
-        0.88
-      );
-
-      // 4. Tumpukan Awan Lego di bagian bawah bergerak naik masuk
+      // Layer Awan Putih: Naik mulus di bagian bawah menutup transisi ke konten berikutnya
       tl.fromTo(
         cloudsRef.current,
         {
-          yPercent: 55,
-          opacity: 0.85,
+          yPercent: 22,
         },
         {
           yPercent: 0,
-          opacity: 1,
-          duration: 0.55,
-          ease: 'power2.inOut',
+          duration: 0.35,
+          ease: 'power1.inOut',
         },
-        0.45
+        0.65
       );
-    }, componentRef);
+    }, container);
 
-    return () => ctx.revert(); // Cleanup semua GSAP trigger & tween saat unmount
+    const onResize = () => {
+      resizeCanvas();
+      renderFrame(frameObj.frame);
+      ScrollTrigger.refresh();
+    };
+
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ctxGsap.revert(); // Safe cleanup ScrollTrigger & GSAP
+    };
   }, []);
 
   return (
     <section
-      ref={componentRef}
-      className="relative w-full h-screen overflow-hidden bg-[#fbf9f8] select-none"
+      ref={containerRef}
+      className="relative w-full h-screen overflow-hidden bg-[#fbf9f8] lego-dot-bg flex items-center justify-center select-none"
     >
-      {/* ─── LAYER 1: DINDING LEGO (Background - z-10) ─── */}
-      <div className="absolute inset-0 z-10 overflow-hidden pointer-events-none">
-        <img
-          ref={wallRef}
-          src="/images/lego-wall.png"
-          alt="Lego Wall Background"
-          className="w-full h-full object-cover object-center scale-100 will-change-transform"
-          onError={(e) => {
-            // Fallback jika path di root
-            e.currentTarget.src = '/lego-wall.png';
-          }}
+      {/* ─── LAYER 1: CANVAS IMAGE SEQUENCE TEMBOK LEGO (Paling Belakang - z-10) ─── */}
+      <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full object-cover object-center pointer-events-none block will-change-transform"
         />
-        {/* Subtle overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/35" />
       </div>
 
-      {/* ─── LAYER 2: TALI & KARTU ID PROFIL (Tengah - z-20) ─── */}
-      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none pt-4">
-        {/* Tali Lanyard yang terhubung ke atas */}
-        <div
-          ref={strapRef}
-          className="w-7 h-48 -mb-2 bg-[#FFD500] border-x-4 border-black shadow-[4px_4px_0px_0px_#000] flex flex-col justify-around items-center overflow-hidden will-change-transform z-10"
-        >
-          <div className="w-full h-2 bg-[#af101a]" />
-          <div className="w-full h-2 bg-[#0055a4]" />
-          <div className="w-full h-2 bg-[#00852B]" />
-        </div>
-
-        {/* Jepitan Klip Lanyard Lego */}
-        <div className="w-12 h-6 bg-[#af101a] border-4 border-black shadow-[3px_3px_0px_0px_#000] rounded-sm z-20 flex items-center justify-center -mb-2">
-          <div className="w-3 h-3 rounded-full bg-[#FFD500] border-2 border-black" />
-        </div>
-
-        {/* Kartu ID Profil Utama */}
-        <div
-          ref={cardRef}
-          className="w-[310px] sm:w-[350px] bg-white border-4 border-black shadow-[10px_10px_0px_0px_#000] rounded-2xl overflow-hidden p-5 flex flex-col gap-4 pointer-events-auto will-change-transform z-20 bg-dot-grid"
-        >
-          {/* Header Kartu dengan Studs Lego */}
-          <div className="flex items-center justify-between border-b-4 border-black pb-3">
-            <div className="flex gap-2">
-              <div className="w-3.5 h-3.5 rounded-full bg-[#af101a] border-2 border-black" />
-              <div className="w-3.5 h-3.5 rounded-full bg-[#FFD500] border-2 border-black" />
-              <div className="w-3.5 h-3.5 rounded-full bg-[#00852B] border-2 border-black" />
-            </div>
-            <span className="font-mono text-[10px] font-black uppercase px-2 py-0.5 bg-[#FFD500] border-2 border-black shadow-[2px_2px_0px_0px_#000]">
-              ID: BUILDER-01
-            </span>
-          </div>
-
-          {/* Foto Profil & Badge */}
-          <div className="flex gap-4 items-center">
-            <div className="relative w-20 h-20 rounded-xl overflow-hidden border-4 border-black bg-neutral-200 shrink-0 shadow-[3px_3px_0px_0px_#000]">
-              <img
-                src="/images/profile-hero.jpg"
-                alt="Raffael Aditya"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = '/profile-hero.jpg';
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-[11px] font-bold font-mono text-[#af101a] uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#af101a] animate-pulse" />
-                ONLINE / READY
-              </span>
-              <h2 className="font-black text-lg text-black leading-tight truncate">
-                RAFFAEL ADITYA
-              </h2>
-              <span className="text-xs font-bold text-neutral-600 truncate">
-                AL FACHRY
-              </span>
-            </div>
-          </div>
-
-          {/* Role & Bio Mini */}
-          <div className="bg-[#f5f5f5] border-3 border-black p-2.5 rounded-lg flex flex-col gap-1">
-            <div className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
-              SPECIALIZATION
-            </div>
-            <div className="font-black text-xs text-black uppercase tracking-tight">
-              Front-End Developer & UI/UX Designer
-            </div>
-          </div>
-
-          {/* Barcode & Footer Strip */}
-          <div className="flex items-center justify-between pt-1 border-t-2 border-dashed border-neutral-300">
-            <div className="flex items-center gap-1 h-6">
-              {[4, 2, 6, 2, 8, 3, 5, 2, 7, 3, 4].map((h, idx) => (
-                <div
-                  key={idx}
-                  className="bg-black w-1 rounded-xs"
-                  style={{ height: `${h * 2.4}px` }}
-                />
-              ))}
-            </div>
-            <span className="font-mono text-[9px] font-bold text-neutral-500">
-              PORTFOLIO // 2026
-            </span>
-          </div>
+      {/* ─── LAYER 2: LANYARD 3D INTERAKTIF (Di Depan Tembok Terbuka - z-20) ─── */}
+      <div
+        ref={lanyardWrapperRef}
+        className="absolute inset-0 z-20 pointer-events-none flex justify-center items-center opacity-0 will-change-transform"
+      >
+        {/* Batasi lebar di tengah agar kiri & kanan tetap tembus scroll dengan leluasa */}
+        <div className="w-full sm:w-2/3 md:w-1/2 lg:w-5/12 max-w-[560px] h-full pointer-events-auto flex justify-center items-center">
+          <Lego3DLanyard />
         </div>
       </div>
 
-      {/* ─── LAYER 3: TUMPUKAN AWAN LEGO (Bawah - z-30) ─── */}
+      {/* ─── LAYER 3: AWAN PUTIH (Paling Depan - z-30, Menutupi Bagian Bawah Tembok) ─── */}
       <div
         ref={cloudsRef}
-        className="absolute -bottom-1 left-0 w-full z-30 pointer-events-none select-none will-change-transform leading-none"
+        className="absolute bottom-0 left-0 w-full z-30 pointer-events-none select-none leading-none will-change-transform"
       >
         <img
-          src="/images/awan-section.png"
-          alt="Lego Cloud Divider"
+          src="/awan-section.png"
+          alt="Cloud Divider"
           className="w-full h-auto block select-none object-cover"
-          onError={(e) => {
-            e.currentTarget.src = '/awan-section.png';
-          }}
         />
       </div>
 
-      {/* ─── SCROLL INDICATOR CUE (z-40) ─── */}
+      {/* ─── PROMPT INDICATOR (z-40) ─── */}
       <div
         ref={indicatorRef}
-        className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2 pointer-events-none z-40"
+        className="absolute bottom-10 md:bottom-12 flex flex-col items-center gap-4 transition-opacity duration-300 pointer-events-none z-40"
       >
-        <span className="font-mono text-xs font-black uppercase bg-white px-4 py-1.5 border-3 border-black shadow-[3px_3px_0px_0px_#000] text-black">
-          Scroll Down to Scrub
+        <span className="font-label-caps text-label-caps font-bold bg-white px-6 py-3 border-4 border-black brick-shadow uppercase text-black select-none">
+          Scroll to Build
         </span>
-        <div className="w-8 h-8 bg-[#FFD500] border-3 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center animate-bounce">
-          <span className="font-black text-sm">↓</span>
+        <div className="w-8 h-8 border-4 border-black bg-white brick-shadow flex items-center justify-center animate-bounce">
+          <span className="font-black text-primary text-[18px]">↓</span>
         </div>
       </div>
     </section>
