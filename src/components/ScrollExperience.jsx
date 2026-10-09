@@ -143,7 +143,20 @@ export default function ScrollExperience() {
         },
       });
 
-      // Hubungkan frame animation ke timeline
+      // Set initial states secara presisi sebelum scroll dimulai
+      gsap.set(cloudsRef.current, {
+        yPercent: 100,
+        opacity: 0,
+      });
+
+      gsap.set(lanyardWrapperRef.current, {
+        opacity: 0,
+        scale: 0.9,
+        y: -60,
+        pointerEvents: 'none',
+      });
+
+      // Hubungkan frame animation ke timeline (0 -> 1.0)
       tl.to(
         frameObj,
         {
@@ -166,38 +179,31 @@ export default function ScrollExperience() {
         0
       );
 
-      // Layer Lanyard: Muncul meluncur saat lubang tembok mulai terbuka (progress 0.6 -> 0.9)
-      tl.fromTo(
+      // Layer Lanyard: Meluncur turun masuk ke tengah saat lubang tembok terbuka
+      tl.to(
         lanyardWrapperRef.current,
-        {
-          opacity: 0,
-          scale: 0.9,
-          y: -60,
-          pointerEvents: 'none',
-        },
         {
           opacity: 1,
           scale: 1,
           y: 0,
           pointerEvents: 'auto',
-          duration: 0.35,
+          duration: 0.25,
           ease: 'power2.out',
         },
-        0.65
+        0.68
       );
 
-      // Layer Awan Putih: Naik mulus di bagian bawah menutup transisi ke konten berikutnya
-      tl.fromTo(
+      // Layer Awan Putih: BARU MUNCUL di bagian AKHIR timeline setelah tembok hancur selesai
+      // Naik dari bawah (yPercent: 0, opacity: 1) menutupi sisa bagian bawah tembok dengan rapi
+      tl.to(
         cloudsRef.current,
         {
-          yPercent: 22,
-        },
-        {
           yPercent: 0,
-          duration: 0.35,
-          ease: 'power1.inOut',
+          opacity: 1,
+          duration: 0.25,
+          ease: 'power2.out',
         },
-        0.65
+        0.75
       );
     }, container);
 
@@ -242,7 +248,7 @@ export default function ScrollExperience() {
       {/* ─── LAYER 3: AWAN PUTIH (Paling Depan - z-30, Menutupi Bagian Bawah Tembok) ─── */}
       <div
         ref={cloudsRef}
-        className="absolute bottom-0 left-0 w-full z-30 pointer-events-none select-none leading-none will-change-transform"
+        className="absolute bottom-0 left-0 w-full z-30 pointer-events-none select-none leading-none will-change-transform translate-y-full opacity-0"
       >
         <img
           src="/awan-section.png"
