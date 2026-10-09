@@ -64,7 +64,7 @@ export default function Skills() {
       : skills.filter((s) => s.category === activeCategory);
 
   return (
-    <section id="skills" className="bg-[#F5F5F5] py-20 border-t-4 border-black">
+    <section id="skills" className="bg-lego-dots py-20 border-t-4 border-black">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         {/* Section Header */}
         <motion.div

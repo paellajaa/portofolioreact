@@ -206,7 +206,7 @@ export default function ScrollExperience() {
       {/* ─── PINNED HERO SECTION (CANVAS + LANYARD) ─── */}
       <section
         ref={containerRef}
-        className="relative w-full h-screen overflow-hidden bg-[#fbf9f8] lego-dot-bg flex items-center justify-center select-none"
+        className="relative w-full h-screen overflow-hidden bg-[#fbf9f8] flex items-center justify-center select-none"
       >
         {/* ─── LAYER 1: CANVAS IMAGE SEQUENCE TEMBOK LEGO (Paling Belakang - z-10) ─── */}
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">

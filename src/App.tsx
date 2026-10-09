@@ -13,7 +13,7 @@ import BackToTop from './components/BackToTop';
 
 export default function App() {
   return (
-    <div className="flex flex-col min-h-screen lego-dot-bg">
+    <div className="flex flex-col min-h-screen bg-white">
       <Navbar />
       {/* 1. GSAP ScrollTrigger Pinned & Scrubbed Experience */}
       <section id="home" className="mb-0">
@@ -21,7 +21,7 @@ export default function App() {
       </section>
 
       {/* 2. Main Content */}
-      <main className="flex-1 flex-grow pt-0 pb-0 relative z-40 lego-dot-bg overflow-x-clip mt-0">
+      <main className="flex-1 flex-grow pt-0 pb-0 relative z-40 bg-white overflow-x-clip mt-0">
         <Hero />
         <About />
         <Experience />
