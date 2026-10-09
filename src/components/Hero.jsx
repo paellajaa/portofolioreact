@@ -174,7 +174,7 @@ export default function Hero() {
       </section>
 
       {/* Infinite Seamless Marquee Ticker Strip below Hero */}
-      <div className="w-full border-y-4 border-black bg-[#FFD500] py-3.5 overflow-hidden mb-0 flex select-none shadow-[4px_4px_0px_0px_#000]">
+      <div className="w-full border-y-4 border-black bg-[#FFD500] py-3.5 overflow-hidden mb-0 flex select-none">
         <motion.div
           className="flex w-max shrink-0 items-center gap-8 whitespace-nowrap font-mono text-xs font-bold text-black uppercase"
           animate={{ x: ['0%', '-50%'] }}
