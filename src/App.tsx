@@ -1,7 +1,7 @@
 // src/App.tsx
 import './index.css';
 import Navbar from './components/Navbar';
-import LegoCanvas from './components/LegoCanvas';
+import ScrollExperience from './components/ScrollExperience';
 import Hero from './components/Hero';
 import About from './components/About';
 import Experience from './components/Experience';
@@ -15,9 +15,9 @@ export default function App() {
   return (
     <div className="min-h-screen lego-dot-bg">
       <Navbar />
-      {/* 1. Lego Canvas Scroll-to-Build Animation with 3D Interactive Lanyard */}
+      {/* 1. GSAP ScrollTrigger Pinned & Scrubbed Experience */}
       <section id="home">
-        <LegoCanvas />
+        <ScrollExperience />
       </section>
 
       {/* 2. Main Content */}
