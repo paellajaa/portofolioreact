@@ -8,13 +8,11 @@ gsap.registerPlugin(ScrollTrigger);
 
 const TOTAL_FRAMES = 214;
 const getFrameUrl = (idx) => `/frames/frame_${idx.toString().padStart(5, '0')}.webp`;
-const FRAME_SEQUENCE_END = 0.75; // Sequence tembok hancur selesai di 75% scroll
 
 export default function ScrollExperience() {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const lanyardWrapperRef = useRef(null);
-  const cloudsRef = useRef(null);
   const indicatorRef = useRef(null);
   const imagesRef = useRef([]);
 
@@ -137,21 +135,13 @@ export default function ScrollExperience() {
           pin: true, // Pinned di layar saat animasi berjalan
           anticipatePin: 1,
           onUpdate: (self) => {
-            // 1. Pemisahan 75% & 25%: Sequence tembok selesai sepenuhnya di 75% progress scroll
-            const frameProgress = gsap.utils.clamp(0, 1, self.progress / FRAME_SEQUENCE_END);
-            const targetFrame = Math.round(1 + frameProgress * (TOTAL_FRAMES - 1));
+            const targetFrame = Math.round(1 + self.progress * (TOTAL_FRAMES - 1));
             renderFrame(targetFrame);
           },
         },
       });
 
-      // 2. Set initial states murni via GSAP (tanpa konflik class Tailwind)
-      gsap.set(cloudsRef.current, {
-        yPercent: 100,
-        opacity: 0,
-      });
-
-      // 3. Bebaskan scroll: Lanyard pointer-events-none agar tidak menghijack mouse wheel
+      // Lanyard pointer-events-none agar tidak menghijack mouse wheel
       gsap.set(lanyardWrapperRef.current, {
         opacity: 0,
         scale: 0.9,
@@ -159,13 +149,13 @@ export default function ScrollExperience() {
         pointerEvents: 'none',
       });
 
-      // Hubungkan frame animation ke timeline hingga poin FRAME_SEQUENCE_END
+      // Hubungkan frame sequence animasi tembok ke timeline
       tl.to(
         frameObj,
         {
           frame: TOTAL_FRAMES,
           ease: 'none',
-          duration: FRAME_SEQUENCE_END,
+          duration: 1,
         },
         0
       );
@@ -182,7 +172,7 @@ export default function ScrollExperience() {
         0
       );
 
-      // 1b. Jalankan animasi Lanyard turun pada poin 0.68 (tetap pointer-events-none agar scroll lancar)
+      // Layer Lanyard: Meluncur turun masuk ke tengah saat lubang tembok terbuka
       tl.to(
         lanyardWrapperRef.current,
         {
@@ -190,22 +180,10 @@ export default function ScrollExperience() {
           scale: 1,
           y: 0,
           pointerEvents: 'none',
-          duration: 0.15,
+          duration: 0.25,
           ease: 'power2.out',
         },
-        0.68
-      );
-
-      // 1c. Animasi Awan HANYA DARI poin FRAME_SEQUENCE_END (0.75) hingga selesai (1.0)
-      tl.to(
-        cloudsRef.current,
-        {
-          yPercent: 0,
-          opacity: 1,
-          duration: 1 - FRAME_SEQUENCE_END,
-          ease: 'power2.out',
-        },
-        FRAME_SEQUENCE_END
+        0.65
       );
     }, container);
 
@@ -224,53 +202,88 @@ export default function ScrollExperience() {
   }, []);
 
   return (
-    <section
-      ref={containerRef}
-      className="relative w-full h-screen overflow-hidden bg-[#fbf9f8] lego-dot-bg flex items-center justify-center select-none"
-    >
-      {/* ─── LAYER 1: CANVAS IMAGE SEQUENCE TEMBOK LEGO (Paling Belakang - z-10) ─── */}
-      <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full object-cover object-center pointer-events-none block will-change-transform"
-        />
-      </div>
-
-      {/* ─── LAYER 2: LANYARD 3D INTERAKTIF (Di Depan Tembok Terbuka - z-20) ─── */}
-      {/* Bebaskan scroll: pointer-events-none di wrapper dan kontainer Lanyard */}
-      <div
-        ref={lanyardWrapperRef}
-        className="absolute inset-0 z-20 pointer-events-none flex justify-center items-center opacity-0 will-change-transform"
+    <>
+      {/* ─── PINNED HERO SECTION (CANVAS + LANYARD) ─── */}
+      <section
+        ref={containerRef}
+        className="relative w-full h-screen overflow-hidden bg-[#fbf9f8] lego-dot-bg flex items-center justify-center select-none"
       >
-        <div className="w-full sm:w-2/3 md:w-1/2 lg:w-5/12 max-w-[560px] h-full pointer-events-none flex justify-center items-center">
-          <Lego3DLanyard />
+        {/* ─── LAYER 1: CANVAS IMAGE SEQUENCE TEMBOK LEGO (Paling Belakang - z-10) ─── */}
+        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full object-cover object-center pointer-events-none block will-change-transform"
+          />
+        </div>
+
+        {/* ─── LAYER 2: LANYARD 3D INTERAKTIF (Di Depan Tembok Terbuka - z-20) ─── */}
+        <div
+          ref={lanyardWrapperRef}
+          className="absolute inset-0 z-20 pointer-events-none flex justify-center items-center opacity-0 will-change-transform"
+        >
+          <div className="w-full sm:w-2/3 md:w-1/2 lg:w-5/12 max-w-[560px] h-full pointer-events-none flex justify-center items-center">
+            <Lego3DLanyard />
+          </div>
+        </div>
+
+        {/* ─── PROMPT INDICATOR (z-40) ─── */}
+        <div
+          ref={indicatorRef}
+          className="absolute bottom-10 md:bottom-12 flex flex-col items-center gap-4 transition-opacity duration-300 pointer-events-none z-40"
+        >
+          <span className="font-label-caps text-label-caps font-bold bg-white px-6 py-3 border-4 border-black brick-shadow uppercase text-black select-none">
+            Scroll to Build
+          </span>
+          <div className="w-8 h-8 border-4 border-black bg-white brick-shadow flex items-center justify-center animate-bounce">
+            <span className="font-black text-primary text-[18px]">↓</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── MARQUEE BANNER DIVIDER (Pita Biru Memanjang Tanpa Awan) ─── */}
+      <div className="relative w-full overflow-hidden bg-blue-600 border-y-4 border-black py-3 sm:py-3.5 select-none z-30 shadow-[0_4px_0_0_#000]">
+        <div className="flex w-max animate-marquee will-change-transform items-center">
+          {/* Block 1 (50%) */}
+          <div className="flex items-center gap-6 sm:gap-8 pr-6 sm:pr-8 shrink-0">
+            {Array(8).fill(null).map((_, idx) => (
+              <React.Fragment key={`m1-${idx}`}>
+                <span className="font-black text-lg sm:text-2xl tracking-widest text-[#FFD500] uppercase drop-shadow-[2px_2px_0px_#000]">
+                  BUILD
+                </span>
+                <span className="text-white text-base sm:text-xl font-bold">▣</span>
+                <span className="font-black text-lg sm:text-2xl tracking-widest text-white uppercase drop-shadow-[2px_2px_0px_#000]">
+                  CODE
+                </span>
+                <span className="text-[#FFD500] text-base sm:text-xl font-bold">▣</span>
+                <span className="font-black text-lg sm:text-2xl tracking-widest text-[#FFD500] uppercase drop-shadow-[2px_2px_0px_#000]">
+                  DESIGN
+                </span>
+                <span className="text-white text-base sm:text-xl font-bold">▣</span>
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Block 2 (50% duplicate for seamless infinite loop) */}
+          <div className="flex items-center gap-6 sm:gap-8 pr-6 sm:pr-8 shrink-0">
+            {Array(8).fill(null).map((_, idx) => (
+              <React.Fragment key={`m2-${idx}`}>
+                <span className="font-black text-lg sm:text-2xl tracking-widest text-[#FFD500] uppercase drop-shadow-[2px_2px_0px_#000]">
+                  BUILD
+                </span>
+                <span className="text-white text-base sm:text-xl font-bold">▣</span>
+                <span className="font-black text-lg sm:text-2xl tracking-widest text-white uppercase drop-shadow-[2px_2px_0px_#000]">
+                  CODE
+                </span>
+                <span className="text-[#FFD500] text-base sm:text-xl font-bold">▣</span>
+                <span className="font-black text-lg sm:text-2xl tracking-widest text-[#FFD500] uppercase drop-shadow-[2px_2px_0px_#000]">
+                  DESIGN
+                </span>
+                <span className="text-white text-base sm:text-xl font-bold">▣</span>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
-
-      {/* ─── LAYER 3: AWAN PUTIH (Paling Depan - z-50, Tanpa Konflik Class Tailwind) ─── */}
-      <div
-        ref={cloudsRef}
-        className="absolute bottom-0 left-0 w-full z-50 pointer-events-none opacity-0 select-none leading-none will-change-transform"
-      >
-        <img
-          src="/awan-section.png"
-          alt="Cloud Divider"
-          className="w-full h-auto block select-none object-cover"
-        />
-      </div>
-
-      {/* ─── PROMPT INDICATOR (z-40) ─── */}
-      <div
-        ref={indicatorRef}
-        className="absolute bottom-10 md:bottom-12 flex flex-col items-center gap-4 transition-opacity duration-300 pointer-events-none z-40"
-      >
-        <span className="font-label-caps text-label-caps font-bold bg-white px-6 py-3 border-4 border-black brick-shadow uppercase text-black select-none">
-          Scroll to Build
-        </span>
-        <div className="w-8 h-8 border-4 border-black bg-white brick-shadow flex items-center justify-center animate-bounce">
-          <span className="font-black text-primary text-[18px]">↓</span>
-        </div>
-      </div>
-    </section>
+    </>
   );
 }
